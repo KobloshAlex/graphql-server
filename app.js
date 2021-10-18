@@ -5,7 +5,7 @@ const { buildSchema } = require("graphql");
 const mongoose = require("mongoose");
 const app = express();
 
-const events = [];
+const Event = require("./models/events");
 
 app.use(bodyParser.json());
 
@@ -25,6 +25,7 @@ app.use(
       title: String!
       description: String!
       price: Float!
+      date: String!
     }
     
     type RootQuery {
@@ -41,19 +42,40 @@ app.use(
     }
   `),
     rootValue: {
-      events: () => events,
+      events: () => {
+        return Event.find()
+          .then((events) => {
+            console.log(`return list of events: ${events}`);
+            return events;
+          })
+          .catch((error) =>
+            console.error(
+              `Error has been occurred during the fetch list of events query ${error}`
+            )
+          );
+      },
       createEvent: (args) => {
-        const { description, price, title } = args.eventInput;
-        const event = {
-          _id: Math.random().toString(),
-          title: title,
-          description: description,
-          price: Number(price),
-          date: new Date().toString(),
-        };
-        events.push(event);
+        const { description, price, title, date } = args.eventInput;
 
-        return event;
+        const event = new Event({
+          title,
+          description,
+          price,
+          date: new Date(date),
+        });
+
+        return event
+          .save()
+          .then((result) => {
+            console.log(`New document was saved to DB: ${result._doc}`);
+            return { ...result._doc };
+          })
+          .catch((error) => {
+            console.error(
+              `Error has been occurred during the save mutation ${error}`
+            );
+            throw error;
+          });
       },
     },
 
@@ -63,10 +85,10 @@ app.use(
 
 mongoose
   .connect(
-    `mongodb+srv://${process.env.MONGO_USER}:${process.env.MONGO_PASSWORD}@cluster0.ttjke.mongodb.net/myFirstDatabase?retryWrites=true&w=majority`
+    `mongodb+srv://${process.env.MONGO_USER}:${process.env.MONGO_PASSWORD}@cluster0.ttjke.mongodb.net/${process.env.MONGO_DB}?retryWrites=true&w=majority`
   )
   .catch((error) => {
-    console.log(error);
+    console.error(error);
   });
 
 app.listen(3000, () => {

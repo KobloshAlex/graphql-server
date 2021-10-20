@@ -6,6 +6,7 @@ const mongoose = require("mongoose");
 const app = express();
 
 const Event = require("./models/events");
+const User = require("./models/user");
 
 app.use(bodyParser.json());
 
@@ -21,11 +22,22 @@ app.use(
       date: String!
     }
     
+    type User {
+      _id: ID!
+      email: String!
+      password:String
+    }
+    
     input EventInput {
       title: String!
       description: String!
       price: Float!
       date: String!
+    }
+    
+    input UserInput {
+      email: String!
+      password: String!
     }
     
     type RootQuery {
@@ -34,6 +46,7 @@ app.use(
     
     type RootMutation {
       createEvent(eventInput: EventInput): Event
+      createUser(userInput: UserInput): User
     }
   
     schema {
@@ -77,8 +90,14 @@ app.use(
             throw error;
           });
       },
+      createUser: (args) => {
+        const { email, password } = args.userInput;
+        const user = new User({
+          email,
+          password
+        });
+      },
     },
-
     graphiql: true,
   })
 );

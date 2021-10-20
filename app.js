@@ -3,6 +3,7 @@ const bodyParser = require("body-parser");
 const { graphqlHTTP } = require("express-graphql");
 const { buildSchema } = require("graphql");
 const mongoose = require("mongoose");
+const bcrypt = require("bcryptjs");
 const app = express();
 
 const Event = require("./models/events");
@@ -75,14 +76,28 @@ app.use(
           description,
           price,
           date: new Date(date),
+          creator: "616f7c48b52a3deac01d5d09",
         });
+
+        let createdEvent;
 
         return event
           .save()
           .then((result) => {
             console.log(`New document was saved to DB: ${result._doc}`);
-            return { ...result._doc };
+            createdEvent = { ...result._doc };
+            return User.findById("616f7c48b52a3deac01d5d09");
           })
+          .then((user) => {
+            if (!user) {
+              throw new Error("User was not found");
+            }
+            user.createdEvents.push(event);
+            return user.save();
+          })
+            .then(result => {
+              return createdEvent;
+            })
           .catch((error) => {
             console.error(
               `Error has been occurred during the save mutation ${error}`
@@ -92,10 +107,27 @@ app.use(
       },
       createUser: (args) => {
         const { email, password } = args.userInput;
-        const user = new User({
-          email,
-          password
-        });
+        return User.findOne({ email })
+          .then((user) => {
+            if (user) {
+              throw new Error("User exist already");
+            }
+            return bcrypt.hash(password, 12);
+          })
+          .then((hashedPassword) => {
+            const user = new User({
+              email,
+              password: hashedPassword,
+            });
+            return user.save();
+          })
+          .then((result) => {
+            return { ...result._doc, password: null, _id: result.id };
+          })
+          .catch((error) => {
+            console.error(error);
+            throw error;
+          });
       },
     },
     graphiql: true,

@@ -11,6 +11,37 @@ const User = require("./models/user");
 
 app.use(bodyParser.json());
 
+const events = (eventsIds) => {
+  return Event.find({ _id: { $in: eventsIds } })
+    .then((events) => {
+      return events.map((event) => {
+        return {
+          ...event._doc,
+          id: event.id,
+          creator: user.bind(this, event.creator),
+        };
+      });
+    })
+    .catch((error) => {
+      throw error;
+    });
+};
+//16:00
+const user = (userId) => {
+  return User.findById(userId)
+    .then((user) => {
+      return {
+        ...user._doc,
+        _id: user._id,
+        createdEvents: events.bind(this, user._doc.createdEvents),
+      };
+    })
+    .catch((error) => {
+      console.error(error);
+      throw error;
+    });
+};
+
 app.use(
   "/graphql",
   graphqlHTTP({
@@ -21,12 +52,14 @@ app.use(
       description: String!
       price: Float!
       date: String!
+      creator: User!
     }
     
     type User {
       _id: ID!
       email: String!
       password:String
+      createdEvents: [Event!]
     }
     
     input EventInput {
@@ -60,7 +93,13 @@ app.use(
         return Event.find()
           .then((events) => {
             console.log(`return list of events: ${events}`);
-            return events;
+            return events.map((event) => {
+              return {
+                ...events._doc,
+                _id: events._id,
+                creator: user.bind(this, event._doc.creator),
+              };
+            });
           })
           .catch((error) =>
             console.error(
@@ -95,9 +134,9 @@ app.use(
             user.createdEvents.push(event);
             return user.save();
           })
-            .then(result => {
-              return createdEvent;
-            })
+          .then((result) => {
+            return createdEvent;
+          })
           .catch((error) => {
             console.error(
               `Error has been occurred during the save mutation ${error}`
